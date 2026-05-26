@@ -2,7 +2,7 @@ pipeline {
     agent any
     
     tools {
-        nodejs 'NodeJS'  // Name configured in Jenkins
+        nodejs 'NodeJS'
     }
     
     stages {
@@ -38,8 +38,27 @@ pipeline {
             steps {
                 echo 'Deploying to staging environment...'
                 sh '''
-                    mkdir -p /var/www/staging
-                    cp -r build/* /var/www/staging/
+                    # Create staging directory in Jenkins workspace
+                    STAGING_DIR="${WORKSPACE}/staging"
+                    mkdir -p ${STAGING_DIR}
+                    cp -r build/* ${STAGING_DIR}/
+                    echo "Deployed to ${STAGING_DIR}"
+                    ls -la ${STAGING_DIR}
+                '''
+            }
+        }
+        
+        stage('Verify Deployment') {
+            steps {
+                echo 'Verifying deployment...'
+                sh '''
+                    if [ -f "${WORKSPACE}/staging/index.html" ]; then
+                        echo "✅ Deployment verified - index.html exists"
+                        cat ${WORKSPACE}/staging/index.html
+                    else
+                        echo "❌ Deployment failed - index.html not found"
+                        exit 1
+                    fi
                 '''
             }
         }
@@ -47,10 +66,15 @@ pipeline {
     
     post {
         success {
-            echo 'Pipeline completed successfully!'
+            echo '🎉 Pipeline completed successfully!'
+            echo "Build number: ${BUILD_NUMBER}"
         }
         failure {
-            echo 'Pipeline failed. Check the logs for details.'
+            echo '❌ Pipeline failed. Check the logs for details.'
+        }
+        always {
+            echo "Workspace: ${WORKSPACE}"
+            echo "Build URL: ${BUILD_URL}"
         }
     }
 }
